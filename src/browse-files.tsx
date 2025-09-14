@@ -30,15 +30,7 @@ export default function BrowseFiles() {
     revalidate,
   } = usePromise(
     (workspaceId: string, folderId?: string) => async (options: { page: number }) => {
-      console.log("=== LOADING FOLDER CONTENT ===");
-      console.log("Workspace ID:", workspaceId);
-      console.log("Folder ID:", folderId);
-      console.log("Page:", options.page + 1); // usePromise uses 0-indexed pages, but our API uses 1-indexed
-
       const result = await razunaAPI.getFolderContent(workspaceId, folderId, options.page + 1, 25);
-
-      console.log(`Received ${result?.files?.length || 0} files for page ${options.page + 1}`);
-      console.log("=== END FOLDER DATA DEBUG ===");
 
       return {
         data: result.files || [],
@@ -95,7 +87,6 @@ export default function BrowseFiles() {
       const folderData = await razunaAPI.getFolders(selectedWorkspace._id);
       setFolders(folderData);
     } catch (err) {
-      console.error("Failed to load folders:", err);
       showToast(Toast.Style.Failure, "Failed to load folders", (err as Error).message);
     }
   };

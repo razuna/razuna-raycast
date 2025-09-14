@@ -26,14 +26,11 @@ export default function ManageWorkspaces() {
       setSelectedWorkspaceState(currentWorkspace);
       setWorkspaces(workspacesData);
 
-      console.log("Loaded workspaces:", workspacesData.length, workspacesData);
-
       if (workspacesData.length === 0) {
         setError("No workspaces found. API returned empty array. Please check your access token and permissions.");
       }
     } catch (err) {
       const errorMessage = (err as Error).message;
-      console.error("Error loading workspaces:", err);
       setError(`Failed to load workspaces: ${errorMessage}`);
       showToast(Toast.Style.Failure, "Failed to load workspaces", errorMessage);
     } finally {

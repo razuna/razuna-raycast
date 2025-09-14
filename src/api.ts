@@ -28,12 +28,6 @@ class RazunaAPI {
     const url = getApiUrl(path);
     const headers = this.getHeaders();
 
-    console.log("=== API REQUEST DEBUG ===");
-    console.log("URL:", url);
-    console.log("Headers:", headers);
-    console.log("Options:", options);
-    console.log("=== END REQUEST DEBUG ===");
-
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -65,16 +59,11 @@ class RazunaAPI {
       return response.data;
     }
 
-    // Log the actual response for debugging
-    console.log("Unexpected workspaces response format:", JSON.stringify(response));
-
     return [];
   }
 
   async getFolders(workspaceId: string): Promise<RazunaFolder[]> {
     const response = await this.makeRequest<FolderTreeResponse>(`/api/v1/files/workspace/getfoldertree/${workspaceId}`);
-
-    console.log("Raw folder tree response:", JSON.stringify(response, null, 2));
 
     // Always include root folder as an option
     const folders: RazunaFolder[] = [];
@@ -99,11 +88,9 @@ class RazunaAPI {
     // We need to flatten it to a folder list for the dropdown
     if (response.results && typeof response.results === "object") {
       const treefolders = this.flattenFolderTree(response.results as FolderTreeResponse);
-      console.log("Flattened folder tree:", treefolders);
       folders.push(...treefolders);
       return folders;
-    } // Log the actual response for debugging
-    console.log("Unexpected folders response format:", JSON.stringify(response));
+    }
 
     return folders; // Return at least the root folder
   }
@@ -162,40 +149,22 @@ class RazunaAPI {
       }
 
       const url = `/api/v1/files/folder/content?${queryParams.toString()}`;
-      console.log("Making getFolderContent request to:", url);
-      console.log("Query parameters:", {
-        workspace_id: workspaceId,
-        folder_id: folderId,
-        page: page.toString(),
-        limit: limit.toString(),
-      });
 
       // Explicitly use GET method and make sure headers are sent
       const response = await this.makeRequest<FilesResponse>(url, {
         method: "GET",
       });
 
-      console.log("=== FOLDER CONTENT API RESPONSE ===");
-      console.log("Full response:", JSON.stringify(response, null, 2));
-      console.log("Response type:", typeof response);
-      console.log("Response keys:", response ? Object.keys(response) : "null/undefined");
-
       // The _getFolderContent function returns { success: true, results: { files: [], total: 0 } }
       let files: RazunaFile[] = [];
 
       if (response && response.success && response.results) {
-        console.log("Response.results:", JSON.stringify(response.results, null, 2));
         if (Array.isArray(response.results)) {
           files = response.results;
-          console.log("Found files in response.results array:", files.length);
         } else if (response.results.files && Array.isArray(response.results.files)) {
           files = response.results.files;
-          console.log("Found files in response.results.files:", files.length);
         }
       }
-
-      console.log("=== END API RESPONSE DEBUG ===");
-      console.log("Extracted files:", files.length, "files found");
 
       // Transform the API response to match our RazunaFolder interface
       const folderContent: RazunaFolder = {
@@ -209,8 +178,7 @@ class RazunaAPI {
       };
 
       return folderContent;
-    } catch (error) {
-      console.error("Error in getFolderContent:", error);
+    } catch {
       // Return empty folder structure on error
       return {
         _id: folderId || "root",
@@ -231,21 +199,10 @@ class RazunaAPI {
       limit: limit,
     };
 
-    console.log("=== SEARCH API REQUEST ===");
-    console.log("Request body:", JSON.stringify(body, null, 2));
-    console.log("Expected page:", page);
-    console.log("Expected limit:", limit);
-    console.log("=== END SEARCH API REQUEST ===");
-
     const response = await this.makeRequest<SearchApiResponse>("/api/v1/files/search/semantic", {
       method: "POST",
       body: JSON.stringify(body),
     });
-
-    console.log("=== SEARCH API RESPONSE ===");
-    console.log("Full response:", JSON.stringify(response, null, 2));
-    console.log("Response type:", typeof response);
-    console.log("Response keys:", response ? Object.keys(response) : "null/undefined");
 
     // Handle the new search API response structure
     let files: RazunaFile[] = [];
@@ -259,15 +216,11 @@ class RazunaAPI {
       total = response.total || files.length;
       actualPage = response.page || page;
       perPage = response.per_page || limit;
-      console.log("Found files in direct response.files:", files.length);
-      console.log("API pagination info - total:", total, "page:", actualPage, "per_page:", perPage);
     } else if (response && response.success && response.results) {
       // Fallback: older response structure with nested results
-      console.log("Response.results:", JSON.stringify(response.results, null, 2));
       if (Array.isArray(response.results)) {
         files = response.results;
         total = files.length;
-        console.log("Found files in response.results array:", files.length);
       } else if (
         typeof response.results === "object" &&
         response.results.files &&
@@ -275,16 +228,12 @@ class RazunaAPI {
       ) {
         files = response.results.files;
         total = response.results.total || files.length;
-        console.log("Found files in response.results.files:", files.length);
       }
     } else if (response && Array.isArray(response)) {
       // Fallback: direct array response (legacy)
       files = response;
       total = files.length;
-      console.log("Found files in direct array response:", files.length);
     }
-
-    console.log("=== END SEARCH API RESPONSE DEBUG ===");
 
     return {
       files,
@@ -328,15 +277,9 @@ class RazunaAPI {
     const fileSizeInMB = fileSizeInBytes / (1024 * 1024);
     const fileSizeInGB = fileSizeInBytes / (1024 * 1024 * 1024);
 
-    console.log(`Upload file size: ${fileSizeInMB.toFixed(2)} MB (${fileSizeInGB.toFixed(2)} GB)`);
-
     // Get upload limit based on workspace plan
     const uploadLimitBytes = this.getUploadLimit(workspace);
     const uploadLimitGB = uploadLimitBytes / (1024 * 1024 * 1024);
-
-    console.log(
-      `Workspace upload limit: ${uploadLimitGB.toFixed(2)} GB (${workspace?.is_paid ? "Paid" : "Free"} plan)`,
-    );
 
     if (fileSizeInBytes > uploadLimitBytes) {
       const planType = workspace?.is_paid ? "paid" : "free";
@@ -345,8 +288,6 @@ class RazunaAPI {
           (workspace?.is_paid ? "" : "Upgrade to a paid plan for 50GB uploads."),
       );
     }
-
-    console.log("Upload parameters:", { filePath, workspaceId, folderId, fileSizeInMB });
 
     const formData = new FormData();
 
@@ -365,8 +306,6 @@ class RazunaAPI {
       formData.append("folder_id", folderId);
     }
 
-    console.log("Form data fields:", Array.from(formData.getHeaders ? Object.keys(formData.getHeaders()) : []));
-
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -376,16 +315,12 @@ class RazunaAPI {
       body: formData,
     });
 
-    console.log("Upload response status:", response.status);
-
     if (!response.ok) {
       const errorText = await response.text();
-      console.log("Upload error response:", errorText);
       throw new Error(`Upload failed: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     const result = (await response.json()) as UploadResponse;
-    console.log("Upload success result:", result);
     return (result.results?.[0] || result.file) as RazunaFile; // Handle array response from backend
   }
 }

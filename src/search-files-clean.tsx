@@ -23,28 +23,12 @@ export default function SearchFiles() {
         throw new Error("No workspace selected");
       }
 
-      console.log(`=== SEARCH API CALL ===`);
-      console.log("Search query:", searchText);
-      console.log("Page:", options.page + 1); // usePromise uses 0-indexed pages, but our API uses 1-indexed
-      console.log("Workspace:", workspaceId);
+      const result = await razunaAPI.searchFiles(searchText, workspaceId, options.page + 1, 25);
 
-      try {
-        const result = await razunaAPI.searchFiles(searchText, workspaceId, options.page + 1, 25);
-
-        console.log("Files received:", result.files.length);
-        console.log("Total available:", result.total);
-        console.log("Current loaded:", (options.page + 1) * 25);
-        console.log("Has more:", (options.page + 1) * 25 < result.total);
-        console.log("=== END SEARCH API CALL ===");
-
-        return {
-          data: result.files,
-          hasMore: (options.page + 1) * 25 < result.total,
-        };
-      } catch (error) {
-        console.error("Search API error:", error);
-        throw error;
-      }
+      return {
+        data: result.files,
+        hasMore: (options.page + 1) * 25 < result.total,
+      };
     },
     [searchQuery, selectedWorkspace?._id || ""],
     {
